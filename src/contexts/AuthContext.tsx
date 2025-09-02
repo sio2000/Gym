@@ -53,16 +53,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (error) throw error;
 
+      // Get user email from auth.users
+      const { data: authUser } = await supabase.auth.getUser();
+      
       const userData: User = {
         id: userId,
-        email: profile.email,
-        firstName: profile.first_name,
-        lastName: profile.last_name,
-        role: profile.role || 'user',
-        referralCode: profile.referral_code,
-        language: profile.language || 'el',
-        createdAt: profile.created_at,
-        updatedAt: profile.updated_at
+        email: authUser.user?.email || '',
+        firstName: profile.first_name || '',
+        lastName: profile.last_name || '',
+        role: 'user', // Default role since it's not in user_profiles
+        referralCode: '', // Not in current schema
+        language: 'el', // Default language
+        createdAt: profile.created_at || new Date().toISOString(),
+        updatedAt: profile.updated_at || new Date().toISOString()
       };
 
       setUser(userData);
@@ -104,32 +107,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            phone: phone?.trim() || null
+          }
+        }
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        console.error('Auth error:', authError);
+        throw authError;
+      }
 
       if (authData.user) {
-        // Create user profile
+        // Check if email confirmation is required
+        if (authData.user.email_confirmed_at === null) {
+          toast.success('Εγγραφή ολοκληρώθηκε! Ελέγξτε το email σας για επιβεβαίωση.');
+          return;
+        }
+
+        // If user is already confirmed, create profile manually
         const { error: profileError } = await supabase
           .from('user_profiles')
           .insert({
             user_id: authData.user.id,
-            email,
             first_name: firstName,
             last_name: lastName,
-            phone: phone?.trim() || null,
-            referral_code: referralCode?.trim() || null,
-            language: language || 'el',
-            role: 'user'
+            phone: phone?.trim() || null
           });
 
-        if (profileError) throw profileError;
+        if (profileError) {
+          console.error('Profile error:', profileError);
+          // Don't throw error, just log it - the trigger might have already created it
+        }
 
         // Load the user profile
         await loadUserProfile(authData.user.id);
         toast.success('Εγγραφή ολοκληρώθηκε επιτυχώς!');
       }
     } catch (error) {
+      console.error('Registration error:', error);
       const message = error instanceof Error ? error.message : 'Σφάλμα κατά την εγγραφή';
       toast.error(message);
       throw error;
@@ -164,7 +183,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           first_name: data.firstName,
           last_name: data.lastName,
           phone: data.phone,
-          language: data.language,
           updated_at: new Date().toISOString()
         })
         .eq('user_id', user.id);
