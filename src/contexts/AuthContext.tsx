@@ -98,6 +98,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const waitForProfile = async (userId: string, timeoutMs = 15000, intervalMs = 600): Promise<boolean> => {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('user_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!error && data) return true;
+      await new Promise(r => setTimeout(r, intervalMs));
+    }
+    return false;
+  };
+
   const register = async (data: RegisterData): Promise<void> => {
     try {
       setIsLoading(true);
@@ -128,22 +143,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           return;
         }
 
-        // If user is already confirmed, create profile manually
-        const { error: profileError } = await supabase
-          .from('user_profiles')
-          .insert({
-            user_id: authData.user.id,
-            first_name: firstName,
-            last_name: lastName,
-            phone: phone?.trim() || null
-          });
+        // Περιμένουμε να δημιουργηθεί το profile από το trigger
+        const profileReady = await waitForProfile(authData.user.id);
 
-        if (profileError) {
-          console.error('Profile error:', profileError);
-          // Don't throw error, just log it - the trigger might have already created it
+        // Αν δεν προλάβει, κάνουμε ένα ασφαλές insert μόνο με τα βασικά πεδία
+        if (!profileReady) {
+          const { error: insertFallbackError } = await supabase
+            .from('user_profiles')
+            .insert({
+              user_id: authData.user.id,
+              first_name: firstName || '',
+              last_name: lastName || '',
+              phone: phone?.trim() || null
+            });
+
+          if (insertFallbackError) {
+            console.error('Profile insert fallback error:', insertFallbackError);
+          }
         }
 
-        // Load the user profile
+        // Φόρτωση προφίλ
         await loadUserProfile(authData.user.id);
         toast.success('Εγγραφή ολοκληρώθηκε επιτυχώς!');
       }
