@@ -11,7 +11,10 @@ import {
   Menu, 
   X,
   Bell,
-  Settings
+  Settings,
+  CreditCard,
+  QrCode,
+  UserPlus
 } from 'lucide-react';
 import { cn } from '@/utils';
 
@@ -27,6 +30,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
+    { name: 'Κρατήσεις', href: '/bookings', icon: Calendar },
+    { name: 'Συνδρομή', href: '/membership', icon: CreditCard },
+    { name: 'QR Codes', href: '/qr-codes', icon: QrCode },
+    { name: 'Παραπομπές', href: '/referral', icon: UserPlus },
     { name: 'Προφίλ', href: '/profile', icon: User },
   ];
 
