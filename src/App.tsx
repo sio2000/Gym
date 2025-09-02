@@ -16,6 +16,7 @@ const Referral = React.lazy(() => import('@/pages/Referral'));
 // Lazy load other pages for better performance
 const AdminPanel = React.lazy(() => import('@/pages/AdminPanel'));
 const Profile = React.lazy(() => import('@/pages/Profile'));
+const TrainerDashboard = React.lazy(() => import('@/pages/TrainerDashboard'));
 
 const App: React.FC = () => {
   return (
@@ -109,6 +110,20 @@ const App: React.FC = () => {
               <Layout>
                 <React.Suspense fallback={<div>Φόρτωση...</div>}>
                   <AdminPanel />
+                </React.Suspense>
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Trainer route - μόνο Πίνακας Ελέγχου */}
+        <Route
+          path="/trainer/dashboard"
+          element={
+            <ProtectedRoute requiredRole="trainer">
+              <Layout>
+                <React.Suspense fallback={<div>Φόρτωση...</div>}>
+                  <TrainerDashboard />
                 </React.Suspense>
               </Layout>
             </ProtectedRoute>

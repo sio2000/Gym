@@ -42,11 +42,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: 'Διαχείριση Χρηστών', href: '/admin/users', icon: Users },
   ];
 
-  // Trainer specific navigation
+  // Trainer specific navigation (ΜΟΝΟ «Πίνακας Ελέγχου»)
   const trainerNavigation = [
-    { name: 'Πρόγραμμα Μαθημάτων', href: '/trainer/schedule', icon: Calendar },
-    { name: 'Κρατήσεις Μαθημάτων', href: '/trainer/bookings', icon: Calendar },
-    { name: 'Στατιστικά', href: '/trainer/stats', icon: TrendingUp },
+    { name: 'Πίνακας Ελέγχου', href: '/trainer/dashboard', icon: Home },
   ];
 
   const handleLogout = () => {
@@ -58,7 +56,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (user?.role === 'admin') {
       return adminNavigation;
     } else if (user?.role === 'trainer') {
-      return [...navigation, ...trainerNavigation];
+      return trainerNavigation; // μόνο για trainer
     }
     return navigation;
   };
