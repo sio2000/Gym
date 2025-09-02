@@ -361,4 +361,7 @@ export const getTrainerDashboardStats = async (req: Request, res: Response) => {
     console.error('Get trainer dashboard stats error:', error);
     res.status(500).json({
       success: false,
-      message: 'Σφάλμα κατά την ανάκτηση των στατισ�
+      message: "Σφάλμα κατά την ανάκτηση των στατιστικών trainer dashboard"
+    });
+  }
+};

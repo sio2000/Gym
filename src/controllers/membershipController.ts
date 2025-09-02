@@ -502,4 +502,7 @@ export const getPendingPayments = async (req: Request, res: Response) => {
     console.error('Get pending payments error:', error);
     res.status(500).json({
       success: false,
-      message: 'Σφάλμα κατά την ανάκτηση των εκκ
+      message: "Σφάλμα κατά την ανάκτηση των εκκρεμών πληρωμών"
+    });
+  }
+};

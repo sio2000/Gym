@@ -2,10 +2,9 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
-  Home, 
-  Calendar, 
-  QrCode, 
-  CreditCard, 
+  Home,
+  Calendar,
+  TrendingUp,
   Users, 
   User, 
   LogOut, 
@@ -28,25 +27,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Κρατήσεις', href: '/bookings', icon: Calendar },
-    { name: 'QR Codes', href: '/qr-codes', icon: QrCode },
-    { name: 'Συνδρομή', href: '/membership', icon: CreditCard },
-    { name: 'Παραπομπές', href: '/referral', icon: Users },
     { name: 'Προφίλ', href: '/profile', icon: User },
   ];
 
   // Admin specific navigation
   const adminNavigation = [
     { name: 'Διαχείριση Χρηστών', href: '/admin/users', icon: Users },
-    { name: 'Διαχείριση Πληρωμών', href: '/admin/payments', icon: CreditCard },
-    { name: 'Στατιστικά', href: '/admin/stats', icon: Home },
   ];
 
   // Trainer specific navigation
   const trainerNavigation = [
     { name: 'Πρόγραμμα Μαθημάτων', href: '/trainer/schedule', icon: Calendar },
     { name: 'Κρατήσεις Μαθημάτων', href: '/trainer/bookings', icon: Calendar },
-    { name: 'Στατιστικά', href: '/trainer/stats', icon: Home },
+    { name: 'Στατιστικά', href: '/trainer/stats', icon: TrendingUp },
   ];
 
   const handleLogout = () => {
@@ -56,7 +49,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const getCurrentNavigation = () => {
     if (user?.role === 'admin') {
-      return [...navigation, ...adminNavigation];
+      return adminNavigation;
     } else if (user?.role === 'trainer') {
       return [...navigation, ...trainerNavigation];
     }

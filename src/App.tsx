@@ -8,10 +8,6 @@ import RegisterForm from '@/components/auth/RegisterForm';
 import Dashboard from '@/pages/Dashboard';
 
 // Lazy load other pages for better performance
-const Bookings = React.lazy(() => import('@/pages/Bookings'));
-const QRCodes = React.lazy(() => import('@/pages/QRCodes'));
-const Membership = React.lazy(() => import('@/pages/Membership'));
-const Referral = React.lazy(() => import('@/pages/Referral'));
 const AdminPanel = React.lazy(() => import('@/pages/AdminPanel'));
 const Profile = React.lazy(() => import('@/pages/Profile'));
 
@@ -35,54 +31,7 @@ const App: React.FC = () => {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/bookings"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <React.Suspense fallback={<div>Φόρτωση...</div>}>
-                  <Bookings />
-                </React.Suspense>
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/qr-codes"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <React.Suspense fallback={<div>Φόρτωση...</div>}>
-                  <QRCodes />
-                </React.Suspense>
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/membership"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <React.Suspense fallback={<div>Φόρτωση...</div>}>
-                  <Membership />
-                </React.Suspense>
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/referral"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <React.Suspense fallback={<div>Φόρτωση...</div>}>
-                  <Referral />
-                </React.Suspense>
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
+
         <Route
           path="/profile"
           element={
@@ -99,30 +48,6 @@ const App: React.FC = () => {
         {/* Admin routes */}
         <Route
           path="/admin/users"
-          element={
-            <ProtectedRoute requiredRole="admin">
-              <Layout>
-                <React.Suspense fallback={<div>Φόρτωση...</div>}>
-                  <AdminPanel />
-                </React.Suspense>
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/payments"
-          element={
-            <ProtectedRoute requiredRole="admin">
-              <Layout>
-                <React.Suspense fallback={<div>Φόρτωση...</div>}>
-                  <AdminPanel />
-                </React.Suspense>
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/stats"
           element={
             <ProtectedRoute requiredRole="admin">
               <Layout>
