@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, LoginCredentials, RegisterData, UserProfile, AuthContextType } from '@/types';
 import toast from 'react-hot-toast';
-import { apiFetch } from '@/config/api';
+import { supabase } from '@/config/supabase';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -14,38 +14,78 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in from localStorage
-    const savedUser = localStorage.getItem('freegym_user');
-    if (savedUser) {
+    // Get initial session
+    const getInitialSession = async () => {
       try {
-        const userData = JSON.parse(savedUser);
-        setUser(userData);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          await loadUserProfile(session.user.id);
+        }
       } catch (error) {
-        console.error('Error parsing saved user:', error);
+        console.error('Error getting initial session:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    getInitialSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        await loadUserProfile(session.user.id);
+      } else {
+        setUser(null);
         localStorage.removeItem('freegym_user');
       }
-    }
-    setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  const loadUserProfile = async (userId: string) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (error) throw error;
+
+      const userData: User = {
+        id: userId,
+        email: profile.email,
+        firstName: profile.first_name,
+        lastName: profile.last_name,
+        role: profile.role || 'user',
+        referralCode: profile.referral_code,
+        language: profile.language || 'el',
+        createdAt: profile.created_at,
+        updatedAt: profile.updated_at
+      };
+
+      setUser(userData);
+      localStorage.setItem('freegym_user', JSON.stringify(userData));
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+    }
+  };
 
   const login = async (credentials: LoginCredentials): Promise<void> => {
     try {
       setIsLoading(true);
-      const res = await apiFetch<{ token: string; user: User }>(
-        '/auth/login',
-        { method: 'POST', body: credentials }
-      );
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: credentials.email,
+        password: credentials.password,
+      });
 
-      if (!res.success || !res.data) {
-        throw new Error(res.message || 'Αποτυχία σύνδεσης');
+      if (error) throw error;
+
+      if (data.user) {
+        await loadUserProfile(data.user.id);
+        toast.success(`Καλώς ήρθες, ${user?.firstName || 'Χρήστη'}!`);
       }
-
-      const { token, user: loggedInUser } = res.data;
-      setUser(loggedInUser);
-      localStorage.setItem('freegym_user', JSON.stringify(loggedInUser));
-      localStorage.setItem('freegym_token', token);
-
-      toast.success(`Καλώς ήρθες, ${loggedInUser.firstName}!`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Σφάλμα κατά τη σύνδεση';
       toast.error(message);
@@ -59,26 +99,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       const { email, password, firstName, lastName, phone, referralCode, language } = data;
-      const payload: any = { email, password, firstName, lastName };
-      if (phone && phone.trim()) payload.phone = phone.trim();
-      if (referralCode && referralCode.trim()) payload.referralCode = referralCode.trim();
-      if (language) payload.language = language;
 
-      const res = await apiFetch<{ token: string; user: User }>(
-        '/auth/register',
-        { method: 'POST', body: payload }
-      );
+      // Create user in Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
 
-      if (!res.success || !res.data) {
-        throw new Error(res.message || 'Αποτυχία εγγραφής');
+      if (authError) throw authError;
+
+      if (authData.user) {
+        // Create user profile
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .insert({
+            user_id: authData.user.id,
+            email,
+            first_name: firstName,
+            last_name: lastName,
+            phone: phone?.trim() || null,
+            referral_code: referralCode?.trim() || null,
+            language: language || 'el',
+            role: 'user'
+          });
+
+        if (profileError) throw profileError;
+
+        // Load the user profile
+        await loadUserProfile(authData.user.id);
+        toast.success('Εγγραφή ολοκληρώθηκε επιτυχώς!');
       }
-
-      const { token, user: newUser } = res.data;
-      setUser(newUser);
-      localStorage.setItem('freegym_user', JSON.stringify(newUser));
-      localStorage.setItem('freegym_token', token);
-
-      toast.success('Εγγραφή ολοκληρώθηκε επιτυχώς!');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Σφάλμα κατά την εγγραφή';
       toast.error(message);
@@ -88,28 +138,42 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const logout = (): void => {
-    setUser(null);
-    localStorage.removeItem('freegym_user');
-    localStorage.removeItem('freegym_token');
-    toast.success('Αποσυνδέθηκες επιτυχώς');
+  const logout = async (): Promise<void> => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      localStorage.removeItem('freegym_user');
+      toast.success('Αποσυνδέθηκες επιτυχώς');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Still clear local state even if logout fails
+      setUser(null);
+      localStorage.removeItem('freegym_user');
+    }
   };
 
   const updateProfile = async (data: Partial<UserProfile>): Promise<void> => {
     try {
       setIsLoading(true);
       
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      if (!user) throw new Error('Δεν είσαι συνδεδεμένος');
       
-      if (user) {
-        const updatedUser = { ...user };
-        // In real app, update user profile in database
-        setUser(updatedUser);
-        localStorage.setItem('freegym_user', JSON.stringify(updatedUser));
-        
-        toast.success('Το προφίλ ενημερώθηκε επιτυχώς');
-      }
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({
+          first_name: data.firstName,
+          last_name: data.lastName,
+          phone: data.phone,
+          language: data.language,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      // Reload user profile
+      await loadUserProfile(user.id);
+      toast.success('Το προφίλ ενημερώθηκε επιτυχώς');
     } catch (error) {
       toast.error('Σφάλμα κατά την ενημέρωση του προφίλ');
       throw error;

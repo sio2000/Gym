@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { apiFetch } from '@/config/api';
+import { supabase } from '@/config/supabase';
 import { 
   CreditCard, 
   Users, 
