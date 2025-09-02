@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "server": "tsx src/server.ts",
     "server:dev": "nodemon --exec tsx src/server.ts",
+    "start": "node dist/server.js",
     "db:setup": "tsx scripts/setupDatabase.ts",
     "db:migrate": "tsx scripts/migrateDatabase.ts",
     "db:update:lessons": "tsx scripts/migrateLessons.ts",
