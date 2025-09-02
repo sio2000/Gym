@@ -8,7 +8,12 @@ import {
   Clock,
   Activity,
   Target,
-  Award
+  Award,
+  BarChart3,
+  Weight,
+  Ruler,
+  Heart,
+  TrendingDown
 } from 'lucide-react';
 import { mockDashboardStats, mockBookings, mockLessons } from '@/data/mockData';
 import { formatDate, formatTime, getLessonCategoryName, getLessonDifficultyName } from '@/utils';
@@ -53,6 +58,52 @@ const Dashboard: React.FC = () => {
 
   const recentLessons = mockLessons.slice(0, 4);
 
+  // Προσωπικά στατιστικά χρήστη
+  const personalStats = {
+    monthlyVisits: 12,
+    weight: 75.5,
+    height: 175,
+    bodyFat: 18.2,
+    muscleMass: 45.8,
+    targetWeight: 72.0,
+    targetBodyFat: 15.0
+  };
+
+  const personalStatsCards = [
+    {
+      name: 'Επισκέψεις τον Μήνα',
+      value: personalStats.monthlyVisits,
+      icon: BarChart3,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-100',
+      trend: '+2 από τον προηγούμενο μήνα'
+    },
+    {
+      name: 'Βάρος',
+      value: `${personalStats.weight} kg`,
+      icon: Weight,
+      color: 'text-green-600',
+      bgColor: 'bg-green-100',
+      trend: '-1.2 kg από τον προηγούμενο μήνα'
+    },
+    {
+      name: 'Ύψος',
+      value: `${personalStats.height} cm`,
+      icon: Ruler,
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-100',
+      trend: 'Σταθερό'
+    },
+    {
+      name: 'Λίπος',
+      value: `${personalStats.bodyFat}%`,
+      icon: Heart,
+      color: 'text-red-600',
+      bgColor: 'bg-red-100',
+      trend: '-0.8% από τον προηγούμενο μήνα'
+    }
+  ];
+
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
@@ -80,6 +131,98 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Προσωπικά Στατιστικά */}
+      <div className="card">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Προσωπικά Στατιστικά</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {personalStatsCards.map((stat) => (
+            <div key={stat.name} className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center mb-2">
+                <div className={`p-2 rounded-lg ${stat.bgColor}`}>
+                  <stat.icon className={`h-5 w-5 ${stat.color}`} />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">{stat.name}</p>
+                  <p className="text-xl font-bold text-gray-900">{stat.value}</p>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">{stat.trend}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Progress Bars */}
+        <div className="space-y-4">
+          <h3 className="text-md font-semibold text-gray-900">Πρόοδος προς τους Στόχους</h3>
+          
+          {/* Βάρος Progress Bar */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700">Βάρος</span>
+              <span className="text-sm text-gray-500">
+                {personalStats.weight} kg / {personalStats.targetWeight} kg
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div 
+                className="bg-green-500 h-3 rounded-full transition-all duration-300"
+                style={{ width: `${Math.min((personalStats.targetWeight / personalStats.weight) * 100, 100)}%` }}
+              ></div>
+            </div>
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>Στόχος: {personalStats.targetWeight} kg</span>
+              <span className="text-green-600 font-medium">
+                {((personalStats.targetWeight / personalStats.weight) * 100).toFixed(1)}% προόδου
+              </span>
+            </div>
+          </div>
+
+          {/* Λίπος Progress Bar */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700">Λίπος</span>
+              <span className="text-sm text-gray-500">
+                {personalStats.bodyFat}% / {personalStats.targetBodyFat}%
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div 
+                className="bg-red-500 h-3 rounded-full transition-all duration-300"
+                style={{ width: `${Math.min((personalStats.targetBodyFat / personalStats.bodyFat) * 100, 100)}%` }}
+              ></div>
+            </div>
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>Στόχος: {personalStats.targetBodyFat}%</span>
+              <span className="text-red-600 font-medium">
+                {((personalStats.targetBodyFat / personalStats.bodyFat) * 100).toFixed(1)}% προόδου
+              </span>
+            </div>
+          </div>
+
+          {/* Μυϊκή Μάζα Progress Bar */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700">Μυϊκή Μάζα</span>
+              <span className="text-sm text-gray-500">
+                {personalStats.muscleMass} kg
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div 
+                className="bg-blue-500 h-3 rounded-full transition-all duration-300"
+                style={{ width: `${Math.min((personalStats.muscleMass / 50) * 100, 100)}%` }}
+              ></div>
+            </div>
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>Στόχος: 50 kg</span>
+              <span className="text-blue-600 font-medium">
+                {((personalStats.muscleMass / 50) * 100).toFixed(1)}% προόδου
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

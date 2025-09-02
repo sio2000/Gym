@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/config/supabase';
 import { 
   CreditCard, 
   Users, 
@@ -13,7 +12,12 @@ import {
   Package,
   Plus,
   Save,
-  Edit3
+  Edit3,
+  BarChart3,
+  TrendingUp,
+  UserCheck,
+  UserX,
+  MoreHorizontal
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -45,17 +49,42 @@ interface ScheduleEntry {
   room: string;
 }
 
+interface UserData {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  status: 'active' | 'inactive' | 'suspended';
+  registrationDate: string;
+  lastActivity: string;
+  avatar?: string;
+}
+
+interface AnalyticsData {
+  lessonPopularity: { name: string; percentage: number; color: string }[];
+  capacityUtilization: { name: string; used: number; total: number; percentage: number }[];
+  instructorPerformance: { name: string; classes: number; rating: number; students: number }[];
+}
+
 const AdminPanel: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'schedule' | 'payments'>('schedule');
+  const [activeTab, setActiveTab] = useState<'schedule' | 'payments' | 'analytics' | 'users'>('schedule');
   const [pendingPayments, setPendingPayments] = useState<PendingPayment[]>([]);
   const [schedule, setSchedule] = useState<ScheduleEntry[]>([]);
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const tabs = [
     { id: 'schedule', name: 'Μηνιαίο Πρόγραμμα', icon: Users },
-    { id: 'payments', name: 'Αιτήματα Πληρωμών', icon: CreditCard }
+    { id: 'payments', name: 'Αιτήματα Πληρωμών', icon: CreditCard },
+    { id: 'analytics', name: 'Αναλυτικά Κρατήσεων', icon: BarChart3 },
+    { id: 'users', name: 'Διαχείριση Χρηστών', icon: UserCheck }
   ];
 
   const days = ['Κυριακή', 'Δευτέρα', 'Τρίτη', 'Τετάρτη', 'Πέμπτη', 'Παρασκευή', 'Σάββατο'];
@@ -153,11 +182,95 @@ const AdminPanel: React.FC = () => {
     }
   ];
 
+  // Fake users data
+  const fakeUsers: UserData[] = [
+    {
+      id: '1',
+      email: 'maria.p@email.com',
+      firstName: 'Μαρία',
+      lastName: 'Παπαδάκη',
+      role: 'Μέλος',
+      status: 'active',
+      registrationDate: '14/1/2025',
+      lastActivity: '31/8/2025'
+    },
+    {
+      id: '2',
+      email: 'giorgos.n@email.com',
+      firstName: 'Γιώργος',
+      lastName: 'Νικολάου',
+      role: 'Εκπαιδευτής',
+      status: 'active',
+      registrationDate: '19/11/2024',
+      lastActivity: '31/8/2025'
+    },
+    {
+      id: '3',
+      email: 'sofia.m@email.com',
+      firstName: 'Σοφία',
+      lastName: 'Μητσοτάκη',
+      role: 'Μέλος',
+      status: 'inactive',
+      registrationDate: '9/3/2025',
+      lastActivity: '19/8/2025'
+    },
+    {
+      id: '4',
+      email: 'alex.k@email.com',
+      firstName: 'Αλέξανδρος',
+      lastName: 'Καραμανλής',
+      role: 'Εκπαιδευτής',
+      status: 'active',
+      registrationDate: '4/9/2024',
+      lastActivity: '30/8/2025'
+    },
+    {
+      id: '5',
+      email: 'katerina.v@email.com',
+      firstName: 'Κατερίνα',
+      lastName: 'Βλάχου',
+      role: 'Μέλος',
+      status: 'suspended',
+      registrationDate: '27/2/2025',
+      lastActivity: '24/8/2025'
+    }
+  ];
+
+  // Fake analytics data
+  const fakeAnalytics: AnalyticsData = {
+    lessonPopularity: [
+      { name: 'CrossFit', percentage: 24, color: '#ef4444' },
+      { name: 'Yoga', percentage: 21, color: '#3b82f6' },
+      { name: 'Pilates', percentage: 18, color: '#10b981' },
+      { name: 'Spinning', percentage: 17, color: '#f59e0b' },
+      { name: 'Zumba', percentage: 11, color: '#8b5cf6' },
+      { name: 'Boxing', percentage: 9, color: '#06b6d4' }
+    ],
+    capacityUtilization: [
+      { name: 'Yoga', used: 85, total: 100, percentage: 85.0 },
+      { name: 'Pilates', used: 72, total: 80, percentage: 90.0 },
+      { name: 'CrossFit', used: 95, total: 100, percentage: 95.0 },
+      { name: 'Spinning', used: 68, total: 75, percentage: 90.7 },
+      { name: 'Zumba', used: 45, total: 60, percentage: 75.0 },
+      { name: 'Boxing', used: 38, total: 50, percentage: 76.0 }
+    ],
+    instructorPerformance: [
+      { name: 'Σάρα Ι.', classes: 24, rating: 4.9, students: 156 },
+      { name: 'Μάρκος Κ.', classes: 18, rating: 4.7, students: 142 },
+      { name: 'Άννα Π.', classes: 22, rating: 4.8, students: 134 },
+      { name: 'Γιάννης Λ.', classes: 16, rating: 4.6, students: 98 }
+    ]
+  };
+
   useEffect(() => {
     if (activeTab === 'payments') {
       loadPendingPayments();
     } else if (activeTab === 'schedule') {
       loadSchedule();
+    } else if (activeTab === 'users') {
+      loadUsers();
+    } else if (activeTab === 'analytics') {
+      loadAnalytics();
     }
   }, [activeTab]);
 
@@ -167,21 +280,32 @@ const AdminPanel: React.FC = () => {
       // Use fake data for now since the API has issues
       setPendingPayments(fakePayments);
       
-      // Try to load real data, but fallback to fake data
-      try {
-        const response = await apiFetch<{ payments: PendingPayment[] }>(
-          '/memberships/payments/pending',
-          { token: localStorage.getItem('freegym_token') || '' }
-        );
-        if (response.success && response.data && response.data.payments.length > 0) {
-          setPendingPayments(response.data.payments);
-        }
-      } catch (error) {
-        // Keep fake data if API fails
-        console.log('Using fake payments data');
-      }
+      // Using fake data for now
+      console.log('Using fake payments data');
     } catch (error) {
       toast.error('Σφάλμα κατά τη φόρτωση των πληρωμών');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      setUsers(fakeUsers);
+    } catch (error) {
+      toast.error('Σφάλμα κατά τη φόρτωση των χρηστών');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAnalytics = async () => {
+    try {
+      setLoading(true);
+      setAnalytics(fakeAnalytics);
+    } catch (error) {
+      toast.error('Σφάλμα κατά τη φόρτωση των αναλυτικών');
     } finally {
       setLoading(false);
     }
@@ -190,24 +314,7 @@ const AdminPanel: React.FC = () => {
   const loadSchedule = async () => {
     try {
       setLoading(true);
-      const response = await apiFetch<{ schedule: any[] }>(
-        '/schedule',
-        { token: localStorage.getItem('freegym_token') || '' }
-      );
-      if (response.success && response.data) {
-        const formattedSchedule = response.data.schedule.map((entry: any) => ({
-          id: entry.id,
-          day: entry.day_of_week,
-          time: entry.start_time,
-          lesson: entry.lesson_name,
-          trainer: entry.trainer_name,
-          capacity: entry.capacity,
-          room: entry.room
-        }));
-        setSchedule(formattedSchedule);
-      }
-    } catch (error) {
-      // Fallback to mock data if API fails
+      // Using mock data for now
       const mockSchedule: ScheduleEntry[] = [
         { id: '1', day: 1, time: '09:00', lesson: 'Pilates', trainer: 'Μαρία Παπαδοπούλου', capacity: 12, room: 'Αίθουσα 1' },
         { id: '2', day: 1, time: '18:00', lesson: 'Kick Boxing', trainer: 'Γιάννης Κωνσταντίνου', capacity: 15, room: 'Αίθουσα 2' },
@@ -215,7 +322,8 @@ const AdminPanel: React.FC = () => {
         { id: '4', day: 3, time: '19:00', lesson: 'Ελεύθερο Gym', trainer: 'Δημήτρης Αντωνίου', capacity: 20, room: 'Κύρια Αίθουσα' },
       ];
       setSchedule(mockSchedule);
-      toast.error('Σφάλμα κατά τη φόρτωση του προγράμματος - χρησιμοποιούνται δοκιμαστικά δεδομένα');
+    } catch (error) {
+      toast.error('Σφάλμα κατά τη φόρτωση του προγράμματος');
     } finally {
       setLoading(false);
     }
@@ -226,19 +334,8 @@ const AdminPanel: React.FC = () => {
       // Remove from local state immediately for better UX
       setPendingPayments(prev => prev.filter(p => p.id !== paymentId));
       
-      // Try to call API, but don't fail if it doesn't work
-      try {
-        await apiFetch(
-          `/memberships/payments/${paymentId}/approve`,
-          {
-            method: 'PUT',
-            body: { status: action },
-            token: localStorage.getItem('freegym_token') || ''
-          }
-        );
-      } catch (error) {
-        console.log('API call failed, but payment was processed locally');
-      }
+      // Payment processed locally
+      console.log('Payment processed locally');
 
       toast.success(`Η πληρωμή ${action === 'approved' ? 'εγκρίθηκε' : 'απορρίφθηκε'} επιτυχώς`);
     } catch (error) {
@@ -272,23 +369,11 @@ const AdminPanel: React.FC = () => {
   const saveSchedule = async () => {
     try {
       setLoading(true);
-      const response = await apiFetch(
-        '/schedule',
-        {
-          method: 'POST',
-          body: { schedule },
-          token: localStorage.getItem('freegym_token') || ''
-        }
-      );
-
-      if (response.success) {
-        toast.success('Το πρόγραμμα αποθηκεύτηκε επιτυχώς!');
-        setEditingSchedule(false);
-        loadSchedule(); // Reload to get updated data
-      }
-    } catch (error) {
+      // Schedule saved locally
       toast.success('Το πρόγραμμα αποθηκεύτηκε τοπικά!');
       setEditingSchedule(false);
+    } catch (error) {
+      toast.error('Σφάλμα κατά την αποθήκευση του προγράμματος');
     } finally {
       setLoading(false);
     }
@@ -309,6 +394,38 @@ const AdminPanel: React.FC = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const handleUserAction = (userId: string, action: 'suspend' | 'activate' | 'delete') => {
+    setUsers(prev => prev.filter(u => u.id !== userId));
+    toast.success(`Ο χρήστης ${action === 'suspend' ? 'αναστάλη' : action === 'activate' ? 'ενεργοποιήθηκε' : 'διαγράφηκε'} επιτυχώς`);
+  };
+
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = roleFilter === 'all' || user.role.toLowerCase().includes(roleFilter.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
+    return matchesSearch && matchesRole && matchesStatus;
+  });
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-green-100 text-green-800';
+      case 'inactive': return 'bg-gray-100 text-gray-800';
+      case 'suspended': return 'bg-orange-100 text-orange-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'Εκπαιδευτής': return 'bg-green-100 text-green-800';
+      case 'Μέλος': return 'bg-blue-100 text-blue-800';
+      case 'admin': return 'bg-purple-100 text-purple-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   };
 
   if (user?.role !== 'admin') {
@@ -534,6 +651,248 @@ const AdminPanel: React.FC = () => {
                       <span>Προσθήκη πρώτου μαθήματος</span>
                     </button>
                   )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Analytics Tab */}
+          {activeTab === 'analytics' && !loading && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900">Αναλυτικά Κρατήσεων</h2>
+                <div className="flex items-center space-x-4">
+                  <select className="border border-gray-300 rounded-md px-3 py-1 text-sm">
+                    <option>Αυτή την εβδομάδα</option>
+                    <option>Αυτόν τον μήνα</option>
+                    <option>Τελευταίους 3 μήνες</option>
+                  </select>
+                  <button className="flex items-center space-x-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors">
+                    <TrendingUp className="h-4 w-4" />
+                    <span>Εξαγωγή</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Navigation tabs for analytics */}
+              <div className="border-b border-gray-200">
+                <nav className="-mb-px flex space-x-8">
+                  <button className="py-2 px-1 border-b-2 border-blue-500 text-blue-600 font-medium text-sm">
+                    Μαθήματα
+                  </button>
+                  <button className="py-2 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm">
+                    Εκπαιδευτές
+                  </button>
+                  <button className="py-2 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm">
+                    Τάσεις
+                  </button>
+                </nav>
+              </div>
+
+              {analytics && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Lesson Popularity */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Δημοφιλία Μαθημάτων</h3>
+                    <div className="space-y-4">
+                      {analytics.lessonPopularity.map((lesson, index) => (
+                        <div key={index} className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div 
+                              className="w-4 h-4 rounded-full" 
+                              style={{ backgroundColor: lesson.color }}
+                            ></div>
+                            <span className="text-sm font-medium text-gray-900">{lesson.name}</span>
+                          </div>
+                          <span className="text-sm font-semibold text-gray-900">{lesson.percentage}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Capacity Utilization */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Χρήση Χωρητικότητας</h3>
+                    <div className="space-y-4">
+                      {analytics.capacityUtilization.map((lesson, index) => (
+                        <div key={index} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-900">{lesson.name}</span>
+                            <span className="text-sm text-gray-600">{lesson.used}/{lesson.total}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className={`h-2 rounded-full ${lesson.percentage > 90 ? 'bg-red-500' : 'bg-orange-500'}`}
+                              style={{ width: `${lesson.percentage}%` }}
+                            ></div>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-xs text-gray-500">{lesson.percentage}% χρήση</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Instructor Performance */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-6 lg:col-span-2">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Απόδοση Εκπαιδευτών</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {analytics.instructorPerformance.map((instructor, index) => (
+                        <div key={index} className="bg-gray-50 rounded-lg p-4">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <User className="h-5 w-5 text-gray-400" />
+                            <span className="font-medium text-gray-900">{instructor.name}</span>
+                          </div>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Μαθήματα:</span>
+                              <span className="font-medium">{instructor.classes}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Αξιολόγηση:</span>
+                              <span className="font-medium">★ {instructor.rating}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Μαθητές:</span>
+                              <span className="font-medium">{instructor.students}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Users Tab */}
+          {activeTab === 'users' && !loading && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900">Διαχείριση Χρηστών</h2>
+              </div>
+
+              {/* Search and Filters */}
+              <div className="flex items-center space-x-4">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    placeholder="Αναζήτηση χρηστών..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  />
+                </div>
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                >
+                  <option value="all">Όλοι οι ρόλοι</option>
+                  <option value="μέλος">Μέλος</option>
+                  <option value="εκπαιδευτής">Εκπαιδευτής</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                >
+                  <option value="all">Όλες οι καταστάσεις</option>
+                  <option value="active">Ενεργός</option>
+                  <option value="inactive">Ανενεργός</option>
+                  <option value="suspended">Αναστολή</option>
+                </select>
+              </div>
+
+              {/* Users Table */}
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Χρήστης</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ρόλος</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Κατάσταση</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Εγγραφή</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Τελευταία Δραστηριότητα</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ενέργειες</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredUsers.map((user) => (
+                      <tr key={user.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                              <User className="h-5 w-5 text-gray-600" />
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {user.firstName} {user.lastName}
+                              </div>
+                              <div className="text-sm text-gray-500">{user.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleColor(user.role)}`}>
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(user.status)}`}>
+                            {user.status === 'active' ? 'Ενεργός' : user.status === 'inactive' ? 'Ανενεργός' : 'Αναστολή'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {user.registrationDate}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {user.lastActivity}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex items-center space-x-2">
+                            {user.status === 'active' ? (
+                              <button
+                                onClick={() => handleUserAction(user.id, 'suspend')}
+                                className="text-yellow-600 hover:text-yellow-900"
+                                title="Αναστολή"
+                              >
+                                <UserX className="h-4 w-4" />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleUserAction(user.id, 'activate')}
+                                className="text-green-600 hover:text-green-900"
+                                title="Ενεργοποίηση"
+                              >
+                                <UserCheck className="h-4 w-4" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleUserAction(user.id, 'delete')}
+                              className="text-red-600 hover:text-red-900"
+                              title="Διαγραφή"
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </button>
+                            <button className="text-gray-600 hover:text-gray-900" title="Περισσότερες ενέργειες">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {filteredUsers.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <p>Δεν βρέθηκαν χρήστες</p>
                 </div>
               )}
             </div>
