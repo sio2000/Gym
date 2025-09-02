@@ -53,7 +53,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (error) throw error;
 
-      // Get user email from auth.users
+      // Get user from Supabase Auth (email + role from metadata)
       const { data: authUser } = await supabase.auth.getUser();
       
       const userData: User = {
@@ -61,7 +61,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         email: authUser.user?.email || '',
         firstName: profile.first_name || '',
         lastName: profile.last_name || '',
-        role: 'user', // Default role since it's not in user_profiles
+        role: (authUser.user?.user_metadata as any)?.role || 'user',
         referralCode: '', // Not in current schema
         language: 'el', // Default language
         createdAt: profile.created_at || new Date().toISOString(),
