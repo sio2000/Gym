@@ -260,3 +260,59 @@ export interface MultilingualText {
   el: string;
   en: string;
 }
+
+// Personal Training Schedule Types
+export interface PersonalTrainingCode {
+  id: string;
+  code: string;
+  packageType: 'personal' | 'kickboxing' | 'combo';
+  createdBy: string;
+  createdAt: string;
+  expiresAt?: string;
+  isActive: boolean;
+  usedBy?: string;
+  usedAt?: string;
+}
+
+export interface PersonalTrainingSchedule {
+  id: string;
+  userId: string;
+  month: number;
+  year: number;
+  scheduleData: PersonalTrainingScheduleData;
+  status: 'pending' | 'accepted' | 'declined';
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  acceptedAt?: string;
+  declinedAt?: string;
+  declineReason?: string;
+}
+
+export interface PersonalTrainingScheduleData {
+  sessions: PersonalTrainingSession[];
+  notes?: string;
+  trainer?: string;
+  specialInstructions?: string;
+}
+
+export interface PersonalTrainingSession {
+  id: string;
+  dayOfWeek: number; // 1-7 (Monday-Sunday)
+  startTime: string; // HH:mm format
+  endTime: string; // HH:mm format
+  type: 'personal' | 'kickboxing' | 'combo';
+  trainer: string;
+  room?: string;
+  notes?: string;
+}
+
+export interface UserWithPersonalTraining {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  hasPersonalTrainingCode: boolean;
+  personalTrainingCode?: string;
+  packageType?: 'personal' | 'kickboxing' | 'combo';
+}

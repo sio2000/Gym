@@ -178,28 +178,28 @@ export const mockLessons: Lesson[] = [
 export const mockMembershipPackages: MembershipPackage[] = [
   {
     id: '1',
-    name: 'Βασικό Πακέτο',
-    description: '10 μαθήματα ανά μήνα',
-    credits: 10,
-    price: 49.99,
+    name: 'Ελεύθερο Γυμναστήριο',
+    description: 'Απεριόριστη πρόσβαση στο γυμναστήριο',
+    credits: 0,
+    price: 29.99,
     validityDays: 30,
     isActive: true
   },
   {
     id: '2',
-    name: 'Προηγμένο Πακέτο',
-    description: '20 μαθήματα ανά μήνα',
-    credits: 20,
-    price: 89.99,
+    name: 'Pilates',
+    description: 'Απεριόριστα μαθήματα Pilates',
+    credits: 999,
+    price: 59.99,
     validityDays: 30,
     isActive: true
   },
   {
     id: '3',
-    name: 'Απεριόριστο Πακέτο',
-    description: 'Απεριόριστα μαθήματα',
-    credits: 999,
-    price: 149.99,
+    name: 'Personal Training / Kick Boxing',
+    description: 'Personal Training και Kick Boxing μαθήματα',
+    credits: 15,
+    price: 99.99,
     validityDays: 30,
     isActive: true
   }

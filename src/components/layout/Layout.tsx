@@ -4,7 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { 
   Home,
   Calendar,
-  TrendingUp,
   Users, 
   User, 
   LogOut, 
@@ -28,10 +27,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const hasPersonalTraining = typeof window !== 'undefined' &&
+    localStorage.getItem('has_personal_training') === 'true';
+
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Κρατήσεις', href: '/bookings', icon: Calendar },
     { name: 'Συνδρομή', href: '/membership', icon: CreditCard },
+    // Προσθέτουμε δυναμικά το Personal Training μόνο όταν είναι ενεργό
+    ...(hasPersonalTraining ? [{ name: 'Personal Training', href: '/personal-training-schedule', icon: Calendar }] : []),
     { name: 'QR Codes', href: '/qr-codes', icon: QrCode },
     { name: 'Παραπομπές', href: '/referral', icon: UserPlus },
     { name: 'Προφίλ', href: '/profile', icon: User },

@@ -17,6 +17,8 @@ const Referral = React.lazy(() => import('@/pages/Referral'));
 const AdminPanel = React.lazy(() => import('@/pages/AdminPanel'));
 const Profile = React.lazy(() => import('@/pages/Profile'));
 const TrainerDashboard = React.lazy(() => import('@/pages/TrainerDashboard'));
+const PersonalTraining = React.lazy(() => import('@/pages/PersonalTraining'));
+const PersonalTrainingSchedule = React.lazy(() => import('@/pages/PersonalTrainingSchedule'));
 
 const App: React.FC = () => {
   return (
@@ -124,6 +126,30 @@ const App: React.FC = () => {
               <Layout>
                 <React.Suspense fallback={<div>Φόρτωση...</div>}>
                   <TrainerDashboard />
+                </React.Suspense>
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Personal Training - Public route (accessible with code) */}
+        <Route
+          path="/personal-training"
+          element={
+            <React.Suspense fallback={<div>Φόρτωση...</div>}>
+              <PersonalTraining />
+            </React.Suspense>
+          }
+        />
+
+        {/* Personal Training Schedule - Protected route for users with Personal Training codes */}
+        <Route
+          path="/personal-training-schedule"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <React.Suspense fallback={<div>Φόρτωση...</div>}>
+                  <PersonalTrainingSchedule />
                 </React.Suspense>
               </Layout>
             </ProtectedRoute>

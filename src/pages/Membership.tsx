@@ -2,10 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   CreditCard, 
-  Calendar, 
   CheckCircle, 
-  Clock, 
-  AlertCircle,
   Plus,
   TrendingUp,
   Award,
@@ -17,13 +14,16 @@ import {
   mockPayments,
   mockDashboardStats 
 } from '@/data/mockData';
-import { formatDate, formatCurrency, getMembershipStatusName, getPaymentStatusName } from '@/utils';
+import { formatDate, formatCurrency, getPaymentStatusName } from '@/utils';
 import toast from 'react-hot-toast';
 
 const Membership: React.FC = () => {
   const { user } = useAuth();
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
+  const [showCodeModal, setShowCodeModal] = useState(false);
+  const [accessCode, setAccessCode] = useState('');
+  const [codeError, setCodeError] = useState('');
 
   // Get user's active membership
   const userMembership = mockMemberships.find(m => m.userId === user?.id);
@@ -45,6 +45,57 @@ const Membership: React.FC = () => {
     toast.success('Η πληρωμή δημιουργήθηκε επιτυχώς! Εκκρεμεί έγκριση από διαχειριστή.');
     setShowPurchaseModal(false);
     setSelectedPackage(null);
+  };
+
+  // Handle special package access (Personal Training / Kick Boxing)
+  const handleSpecialPackageAccess = () => {
+    setShowCodeModal(true);
+    setAccessCode('');
+    setCodeError('');
+  };
+
+  // Verify access code against database (Supabase)
+  const handleVerifyCode = async () => {
+    const code = accessCode.trim();
+    if (!code) {
+      setCodeError('Παρακαλώ εισάγετε έναν έγκυρο κωδικό.');
+      return;
+    }
+
+    try {
+      setCodeError('');
+      // Ελέγχουμε αν υπάρχει ενεργός κωδικός και τον αποδίδουμε στον χρήστη (αν δεν έχει ήδη αποδοθεί)
+      const { data, error } = await (await import('@/config/supabase')).supabase
+        .from('personal_training_codes')
+        .select('*')
+        .eq('code', code)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (error || !data) {
+        setCodeError('Λάθος κωδικός πρόσβασης. Παρακαλώ δοκιμάστε ξανά.');
+        return;
+      }
+
+      // Αν δεν έχει χρήστη, τον «δένουμε» με τον τρέχοντα
+      if (!data.used_by && user?.id) {
+        const { error: updErr } = await (await import('@/config/supabase')).supabase
+          .from('personal_training_codes')
+          .update({ used_by: user.id, used_at: new Date().toISOString() })
+          .eq('id', data.id);
+        if (updErr) {
+          setCodeError('Αποτυχία δέσμευσης κωδικού. Δοκιμάστε ξανά.');
+          return;
+        }
+      }
+
+      // Θέτουμε και το UI flag τοπικά για τη ροή του κουμπιού
+      try { localStorage.setItem('has_personal_training', 'true'); } catch {}
+      setShowCodeModal(false);
+      window.open('/personal-training', '_blank');
+    } catch (e) {
+      setCodeError('Παρουσιάστηκε σφάλμα. Δοκιμάστε ξανά.');
+    }
   };
 
   // Calculate days remaining in membership
@@ -157,6 +208,7 @@ const Membership: React.FC = () => {
           {mockMembershipPackages.map((pkg) => {
             const isCurrentPackage = userMembership?.packageId === pkg.id;
             const isRecommended = pkg.id === '2'; // Προηγμένο πακέτο
+            const hasPersonalTraining = typeof window !== 'undefined' && localStorage.getItem('has_personal_training') === 'true';
 
             return (
               <div 
@@ -200,7 +252,7 @@ const Membership: React.FC = () => {
                 <div className="space-y-3 mb-6">
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Πιστώσεις:</span>
-                    <span className="font-semibold text-gray-900">{pkg.credits}</span>
+                    <span className="font-semibold text-gray-900">{pkg.credits === 0 ? 'Απεριόριστο' : pkg.credits}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Διάρκεια:</span>
@@ -209,24 +261,47 @@ const Membership: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Κόστος/μάθημα:</span>
                     <span className="font-semibold text-gray-900">
-                      {formatCurrency(pkg.price / pkg.credits)}
+                      {pkg.credits === 0 ? 'Απεριόριστο' : formatCurrency(pkg.price / pkg.credits)}
                     </span>
                   </div>
                 </div>
 
                 <button
-                  onClick={() => handlePurchasePackage(pkg.id)}
-                  disabled={isCurrentPackage}
+                  onClick={() => {
+                    if (pkg.id === '3') { // Personal Training / Kick Boxing
+                      if (!hasPersonalTraining) {
+                        handleSpecialPackageAccess();
+                      }
+                    } else {
+                      handlePurchasePackage(pkg.id);
+                    }
+                  }}
+                  disabled={isCurrentPackage || (pkg.id === '3' && hasPersonalTraining)}
                   className={`
                     w-full py-3 px-4 rounded-lg font-medium transition-colors
                     ${isCurrentPackage
                       ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                      : 'btn-primary hover:bg-primary-700'
+                      : pkg.id === '3'
+                        ? hasPersonalTraining
+                          ? 'bg-green-100 text-green-700 border border-green-300 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800'
+                        : 'btn-primary hover:bg-primary-700'
                     }
                   `}
                 >
-                  {isCurrentPackage ? 'Τρέχον Πακέτο' : 'Επιλογή Πακέτου'}
+                  {isCurrentPackage 
+                    ? 'Τρέχον Πακέτο' 
+                    : pkg.id === '3' 
+                      ? (hasPersonalTraining ? '✅ Είστε Εγγεγραμμένος' : '🔒 Πρόσβαση με Κωδικό') 
+                      : 'Επιλογή Πακέτου'}
                 </button>
+
+                {pkg.id === '3' && hasPersonalTraining && (
+                  <div className="mt-3 flex items-center justify-center text-green-700 bg-green-50 border border-green-200 rounded-md py-2 text-sm">
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Η πρόσβαση στο Personal Training είναι ενεργή στο προφίλ σας
+                  </div>
+                )}
               </div>
             );
           })}
@@ -353,7 +428,7 @@ const Membership: React.FC = () => {
                   <option value="">Επιλέξτε πακέτο</option>
                   {mockMembershipPackages.map((pkg) => (
                     <option key={pkg.id} value={pkg.id}>
-                      {pkg.name} - {formatCurrency(pkg.price)} ({pkg.credits} πιστώσεις)
+                      {pkg.name} - {formatCurrency(pkg.price)} ({pkg.credits === 0 ? 'Απεριόριστο' : pkg.credits} πιστώσεις)
                     </option>
                   ))}
                 </select>
@@ -373,7 +448,7 @@ const Membership: React.FC = () => {
                         </div>
                         <div className="flex justify-between">
                           <span>Πιστώσεις:</span>
-                          <span className="font-medium">{pkg.credits}</span>
+                          <span className="font-medium">{pkg.credits === 0 ? 'Απεριόριστο' : pkg.credits}</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Διάρκεια:</span>
@@ -403,6 +478,82 @@ const Membership: React.FC = () => {
                 className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Επιβεβαίωση Αγοράς
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Access Code Modal */}
+      {showCodeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Πρόσβαση σε Personal Training / Kick Boxing</h3>
+              <button
+                onClick={() => setShowCodeModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <CreditCard className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <h4 className="font-semibold text-purple-900">Εξαιρετικό Πακέτο</h4>
+                </div>
+                <p className="text-sm text-purple-700">
+                  Αυτό το πακέτο περιλαμβάνει Personal Training και Kick Boxing μαθήματα με εξειδικευμένους προπονητές.
+                </p>
+              </div>
+
+              <div>
+                <label className="form-label">Κωδικός Πρόσβασης</label>
+                <input
+                  type="password"
+                  className="input-field"
+                  placeholder="Εισάγετε τον κωδικό πρόσβασης"
+                  value={accessCode}
+                  onChange={(e) => {
+                    setAccessCode(e.target.value);
+                    setCodeError('');
+                  }}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleVerifyCode();
+                    }
+                  }}
+                />
+                {codeError && (
+                  <p className="text-red-600 text-sm mt-1">{codeError}</p>
+                )}
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-sm text-gray-600">
+                  <strong>Σημείωση:</strong> Αυτό το πακέτο απαιτεί ειδικό κωδικό πρόσβασης. 
+                  Επικοινωνήστε με τη διαχείριση για να λάβετε τον κωδικό σας.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={() => setShowCodeModal(false)}
+                className="btn-secondary flex-1"
+              >
+                Ακύρωση
+              </button>
+              <button
+                onClick={handleVerifyCode}
+                disabled={!accessCode.trim()}
+                className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Επιβεβαίωση
               </button>
             </div>
           </div>
