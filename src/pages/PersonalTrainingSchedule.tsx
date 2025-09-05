@@ -18,115 +18,116 @@ import {
 } from '@/types';
 
 const PersonalTrainingSchedulePage: React.FC = () => {
+  console.log('[PersonalTrainingSchedule] Component rendering');
   const { user } = useAuth();
+  console.log('[PersonalTrainingSchedule] User from useAuth:', user?.email, 'ID:', user?.id);
   const [schedule, setSchedule] = useState<PersonalTrainingSchedule | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDeclineMessage, setShowDeclineMessage] = useState(false);
   const [isLoading, setIsLoading] = useState(false); // Protection against multiple calls
   const hasLoadedRef = useRef(false); // Prevent multiple loads for same user
+  const [loadTimeout, setLoadTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const days = ['Κυριακή', 'Δευτέρα', 'Τρίτη', 'Τετάρτη', 'Πέμπτη', 'Παρασκευή', 'Σάββατο'];
 
+
   useEffect(() => {
+    console.log('[PersonalTrainingSchedule] ===== USEEFFECT TRIGGERED =====');
+    console.log('[PersonalTrainingSchedule] User:', user?.email, 'ID:', user?.id);
+    console.log('[PersonalTrainingSchedule] User object:', user);
+    console.log('[PersonalTrainingSchedule] hasLoadedRef.current:', hasLoadedRef.current);
+    console.log('[PersonalTrainingSchedule] isLoading:', isLoading);
+    console.log('[PersonalTrainingSchedule] loading state:', loading);
+    
+    // Clear any existing timeout
+    if (loadTimeout) {
+      console.log('[PersonalTrainingSchedule] Clearing existing timeout');
+      clearTimeout(loadTimeout);
+      setLoadTimeout(null);
+    }
+    
     // Περιμένουμε να υπάρχει user πριν τη φόρτωση
     if (!user) {
-      console.warn('[PTS] useEffect: No user yet, skipping initial load');
+      console.log('[PersonalTrainingSchedule] No user, resetting hasLoadedRef and stopping loading');
       hasLoadedRef.current = false;
+      setLoading(false);
       return;
     }
     
     // Prevent multiple loads for the same user
     if (hasLoadedRef.current) {
-      console.log('[PTS] useEffect: Already loaded for this user, skipping');
+      console.log('[PersonalTrainingSchedule] Already loaded for this user, skipping');
       return;
     }
     
+    console.log('[PersonalTrainingSchedule] Starting load for user:', user.email);
     hasLoadedRef.current = true;
     loadPersonalTrainingSchedule();
+    
+    // Set a timeout to prevent infinite loading
+    console.log('[PersonalTrainingSchedule] Setting 10 second timeout');
+    const timeout = setTimeout(() => {
+      console.warn('[PersonalTrainingSchedule] Load timeout reached, stopping loading');
+      setLoading(false);
+      setIsLoading(false);
+    }, 10000); // 10 seconds timeout
+    
+    setLoadTimeout(timeout);
+    
+    return () => {
+      console.log('[PersonalTrainingSchedule] useEffect cleanup');
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
   }, [user]);
 
   const loadPersonalTrainingSchedule = async () => {
+    console.log('[PersonalTrainingSchedule] ===== LOADING STARTED =====');
+    console.log('[PersonalTrainingSchedule] User ID:', user?.id);
+    console.log('[PersonalTrainingSchedule] User email:', user?.email);
+    
     // Protection against multiple concurrent calls
     if (isLoading) {
-      console.log('[PTS] Already loading, skipping duplicate call');
+      console.log('[PersonalTrainingSchedule] Already loading, skipping...');
       return;
     }
 
-    // Set loading flag immediately to prevent concurrent calls
     setIsLoading(true);
     
     try {
       setLoading(true);
-      console.group('[PTS] loadPersonalTrainingSchedule - FIXED VERSION');
-      console.log('[PTS] Start at:', new Date().toISOString());
-      console.log('[PTS] Loading schedule for user:', user?.id);
-      console.log('[PTS] This is the FIXED version without session timeout issues');
       
       if (!user?.id) {
-        console.error('[PTS] No user.id available');
+        console.error('[PersonalTrainingSchedule] No user ID found');
         toast.error('Δεν βρέθηκε χρήστης. Κάντε επανασύνδεση.');
         setSchedule(null);
-        console.groupEnd();
-        setIsLoading(false);
         return;
       }
 
-      // Απλοποιημένη προσέγγιση: απευθείας query χωρίς session check που κολλάει
-      const timerId = `[PTS] Direct query latency - ${Date.now()}`;
-      console.time(timerId);
+      console.log('[PersonalTrainingSchedule] Querying personal_training_schedules...');
       
-      console.log('[PTS] About to query personal_training_schedules for user:', user.id);
-      
-      // Add timeout to prevent hanging - use admin client to bypass RLS
-      const queryPromise = supabaseAdmin
+      // Optimized query - only select necessary fields
+      const { data, error } = await supabaseAdmin
         .from('personal_training_schedules')
         .select('id,user_id,month,year,schedule_data,status,created_by,created_at,updated_at,accepted_at,declined_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(1);
-      
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Query timeout after 10 seconds')), 10000)
-      );
-      
-      let data, error;
-      try {
-        const result = await Promise.race([queryPromise, timeoutPromise]) as any;
-        data = result.data;
-        error = result.error;
-      } catch (timeoutError) {
-        console.error('[PTS] Query timeout or error:', timeoutError);
-        console.log('[PTS] Using fallback: No data found (query timeout)');
-        data = null;
-        error = null;
-      }
-        
-      console.timeEnd(timerId);
-      console.log('[PTS] Query completed successfully');
-      
-      console.log('[PTS] Query result - FIXED VERSION:', { 
-        rows: Array.isArray(data) ? data.length : 'n/a', 
-        error: error?.message || null,
-        errorCode: error?.code || null,
-        timestamp: new Date().toISOString()
-      });
+
+      console.log('[PersonalTrainingSchedule] Query result - data:', data, 'error:', error);
 
       if (error) {
-        console.error('[PTS] Query error details:', error);
-        if (error.code === 'PGRST301' || error.message?.includes('JWT')) {
-          toast.error('Πρόβλημα αυθεντικοποίησης. Κάντε επανασύνδεση.');
-        } else if (error.message?.includes('timeout')) {
-          toast.error('Το ερώτημα στη βάση δεδομένων χρειάστηκε πολύ χρόνο. Δοκιμάστε ξανά.');
-        } else {
-          toast.error(`Σφάλμα βάσης δεδομένων: ${error.message}`);
-        }
+        console.error('[PersonalTrainingSchedule] Query error:', error);
+        toast.error(`Σφάλμα βάσης δεδομένων: ${error.message}`);
         setSchedule(null);
         return;
       }
 
-      const row = (data as any[])?.[0];
-      if (row) {
-        console.log('[PTS] Row found with status:', row.status, 'created_at:', row.created_at);
+      if (data && data.length > 0) {
+        console.log('[PersonalTrainingSchedule] Found schedule data:', data[0]);
+        const row = data[0];
+        
         const loaded: PersonalTrainingSchedule = {
           id: row.id,
           userId: row.user_id,
@@ -140,27 +141,27 @@ const PersonalTrainingSchedulePage: React.FC = () => {
           acceptedAt: row.accepted_at,
           declinedAt: row.declined_at
         } as any;
+        
+        console.log('[PersonalTrainingSchedule] Loaded schedule:', loaded);
         setSchedule(loaded);
-        console.log('[PTS] Schedule loaded successfully - FIXED VERSION');
       } else {
-        console.log('[PTS] No schedule found for user - FIXED VERSION');
+        console.log('[PersonalTrainingSchedule] No schedule found for user');
         setSchedule(null);
       }
     } catch (error) {
-      console.error('[PTS] Exception while loading schedule:', error);
-      
-      if (error instanceof Error && error.message.includes('timeout')) {
-        toast.error('Το ερώτημα στη βάση δεδομένων χρειάστηκε πολύ χρόνο. Δοκιμάστε ξανά.');
-      } else {
-        toast.error('Σφάλμα κατά τη φόρτωση του προγράμματος');
-      }
-      
+      console.error('[PersonalTrainingSchedule] Exception while loading schedule:', error);
+      toast.error('Σφάλμα κατά τη φόρτωση του προγράμματος');
       setSchedule(null);
     } finally {
-      console.log('[PTS] End at:', new Date().toISOString(), '- FIXED VERSION');
-      console.groupEnd();
+      console.log('[PersonalTrainingSchedule] ===== LOADING COMPLETED =====');
       setLoading(false);
       setIsLoading(false);
+      
+      // Clear timeout since loading completed
+      if (loadTimeout) {
+        clearTimeout(loadTimeout);
+        setLoadTimeout(null);
+      }
     }
   };
 
@@ -171,10 +172,10 @@ const PersonalTrainingSchedulePage: React.FC = () => {
       setLoading(true);
       const acceptedAt = new Date().toISOString();
       const updatedAt = new Date().toISOString();
-      const { error } = await supabaseAdmin
-        .from('personal_training_schedules')
-        .update({ status: 'accepted', accepted_at: acceptedAt, updated_at: updatedAt })
-        .eq('id', schedule.id);
+              const { error } = await supabaseAdmin
+          .from('personal_training_schedules')
+          .update({ status: 'accepted', accepted_at: acceptedAt, updated_at: updatedAt })
+          .eq('id', schedule.id);
       if (error) throw error;
       await loadPersonalTrainingSchedule();
       toast.success('Το πρόγραμμα έγινε αποδεκτό!');
@@ -193,10 +194,10 @@ const PersonalTrainingSchedulePage: React.FC = () => {
       setLoading(true);
       const declinedAt = new Date().toISOString();
       const updatedAt = new Date().toISOString();
-      const { error } = await supabaseAdmin
-        .from('personal_training_schedules')
-        .update({ status: 'declined', declined_at: declinedAt, updated_at: updatedAt })
-        .eq('id', schedule.id);
+              const { error } = await supabaseAdmin
+          .from('personal_training_schedules')
+          .update({ status: 'declined', declined_at: declinedAt, updated_at: updatedAt })
+          .eq('id', schedule.id);
       if (error) throw error;
       await loadPersonalTrainingSchedule();
       setShowDeclineMessage(true);
@@ -261,12 +262,17 @@ const PersonalTrainingSchedulePage: React.FC = () => {
     }
   };
 
+  console.log('[PersonalTrainingSchedule] Rendering - loading:', loading, 'user:', user?.email, 'schedule:', !!schedule);
+
   if (loading) {
+    console.log('[PersonalTrainingSchedule] Rendering loading screen');
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Φόρτωση προγράμματος...</p>
+          <p className="text-sm text-gray-500 mt-2">User: {user?.email || 'No user'}</p>
+          <p className="text-xs text-gray-400 mt-1">Loading state: {loading ? 'true' : 'false'}</p>
         </div>
       </div>
     );
@@ -333,7 +339,14 @@ const PersonalTrainingSchedulePage: React.FC = () => {
                       <div className="mt-2 space-y-1">
                         <div className="flex items-center space-x-2 text-sm text-gray-600">
                           <Calendar className="h-4 w-4" />
-                          <span>{days[session.dayOfWeek]}</span>
+                          <span>
+                            {new Date(session.date).toLocaleDateString('el-GR', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </span>
                         </div>
                         <div className="flex items-center space-x-2 text-sm text-gray-600">
                           <User className="h-4 w-4" />

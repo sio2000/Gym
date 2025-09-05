@@ -56,28 +56,32 @@ const PersonalTraining: React.FC = () => {
 
   const services = [
     {
-      name: 'Personal Training',
-      description: 'Ατομικές προπονήσεις προσαρμοσμένες στους στόχους σας',
+      name: 'Personal Training Χρήστης',
+      description: 'Το προσωποποιημένο πρόγραμμα προπόνησής σας είναι έτοιμο!',
+      duration: '50 λεπτά',
+      price: 'Συμπεριλαμβάνεται',
+      icon: Dumbbell,
+      features: ['Προσωποποιημένο πρόγραμμα', 'Ατομική προπόνηση', 'Παρακολούθηση προόδου'],
+      hasButton: false,
+      isUserService: true,
+      statusMessage: 'Το πρόγραμμά σας σας περιμένει!',
+      instructionMessage: 'Πηγαίνετε στο μενού "Personal Training" για να δείτε το προσωποποιημένο πρόγραμμα που έχει δημιουργηθεί για εσάς.'
+    },
+    {
+      name: 'Πασπαρτού Personal',
+      description: 'Εξειδικευμένες προπονήσεις για μη εγγεγραμμένους χρήστες',
       duration: '50 λεπτά',
       price: '€45/μάθημα',
-      icon: Dumbbell,
-      features: ['Αξιολόγηση φυσικής κατάστασης', 'Προσωποποιημένο πρόγραμμα', 'Παρακολούθηση προόδου']
-    },
-    {
-      name: 'Kick Boxing',
-      description: 'Μαθήματα Kick Boxing για τεχνική και φυσική κατάσταση',
-      duration: '60 λεπτά',
-      price: '€35/μάθημα',
-      icon: Zap,
-      features: ['Βασικές τεχνικές', 'Συνδυασμοί', 'Sparring (προαιρετικό)']
-    },
-    {
-      name: 'Combo Package',
-      description: 'Συνδυασμός Personal Training και Kick Boxing',
-      duration: '110 λεπτά',
-      price: '€70/μάθημα',
       icon: Target,
-      features: ['Personal Training 50min', 'Kick Boxing 60min', 'Εκπτωση 10%']
+      features: [
+        'Αξιολόγηση φυσικής κατάστασης',
+        'Προσωποποιημένο πρόγραμμα',
+        'Εξειδικευμένη προπόνηση',
+        'Personal συνεδρίες → 4 συνεδρίες',
+        'Group συνεδρίες → 4 συνεδρίες'
+      ],
+      hasButton: false,
+      isUserService: false
     }
   ];
 
@@ -115,14 +119,26 @@ const PersonalTraining: React.FC = () => {
         {/* Services */}
         <div className="mb-16">
           <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">Υπηρεσίες</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {services.map((service, index) => {
               const Icon = service.icon;
               return (
-                <div key={index} className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+                <div key={index} className={`rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow ${
+                  service.isUserService 
+                    ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200' 
+                    : 'bg-white'
+                }`}>
                   <div className="text-center mb-6">
-                    <div className="p-4 bg-purple-100 rounded-full inline-block mb-4">
-                      <Icon className="h-8 w-8 text-purple-600" />
+                    <div className={`p-4 rounded-full inline-block mb-4 ${
+                      service.isUserService 
+                        ? 'bg-green-100' 
+                        : 'bg-purple-100'
+                    }`}>
+                      <Icon className={`h-8 w-8 ${
+                        service.isUserService 
+                          ? 'text-green-600' 
+                          : 'text-purple-600'
+                      }`} />
                     </div>
                     <h3 className="text-xl font-bold text-gray-900 mb-2">{service.name}</h3>
                     <p className="text-gray-600 mb-4">{service.description}</p>
@@ -131,22 +147,56 @@ const PersonalTraining: React.FC = () => {
                         <Clock className="h-4 w-4 mr-1" />
                         {service.duration}
                       </span>
-                      <span className="font-semibold text-purple-600">{service.price}</span>
+                      <span className={`font-semibold ${
+                        service.isUserService 
+                          ? 'text-green-600' 
+                          : 'text-purple-600'
+                      }`}>{service.price}</span>
                     </div>
                   </div>
                   
-                  <ul className="space-y-2">
+                  {/* Success Message for User Service */}
+                  {service.isUserService && (
+                    <div className="mb-6 p-4 bg-green-100 border border-green-300 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex-shrink-0">
+                          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                            <Star className="h-5 w-5 text-white" />
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-sm font-semibold text-green-800 mb-1">
+                            {service.statusMessage}
+                          </h4>
+                          <p className="text-sm text-green-700">
+                            {service.instructionMessage}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <ul className="space-y-2 mb-6">
                     {service.features.map((feature, featureIndex) => (
                       <li key={featureIndex} className="flex items-center text-sm text-gray-600">
-                        <div className="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
+                        <div className={`w-2 h-2 rounded-full mr-3 ${
+                          service.isUserService 
+                            ? 'bg-green-500' 
+                            : 'bg-purple-500'
+                        }`}></div>
                         {feature}
                       </li>
                     ))}
                   </ul>
                   
-                  <button className="w-full mt-6 bg-purple-600 text-white py-3 px-4 rounded-lg hover:bg-purple-700 transition-colors font-medium">
-                    Κράτηση Μαθήματος
-                  </button>
+                  {service.hasButton && (
+                    <button 
+                      onClick={service.onButtonClick}
+                      className="w-full bg-purple-600 text-white py-3 px-4 rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                    >
+                      {service.buttonText}
+                    </button>
+                  )}
                 </div>
               );
             })}

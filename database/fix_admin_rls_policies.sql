@@ -1,70 +1,54 @@
--- Fix RLS policies for admin to access all user_profiles
--- This will allow the admin to see all users in the admin panel
+-- Fix RLS policies for admin access to personal_training_schedules
+-- The current policies check the 'users' table but admin role is in 'user_profiles'
 
--- First, let's check current RLS policies
-SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
-FROM pg_policies 
-WHERE tablename = 'user_profiles';
+-- IMPORTANT: First run database/fix_admin_user_role.sql to update admin role!
 
--- Drop existing policies if they exist
-DROP POLICY IF EXISTS "Users can view their own profile" ON user_profiles;
-DROP POLICY IF EXISTS "Users can update their own profile" ON user_profiles;
-DROP POLICY IF EXISTS "Admins can view all profiles" ON user_profiles;
-DROP POLICY IF EXISTS "Admins can manage all profiles" ON user_profiles;
+-- Drop ALL existing policies first to avoid conflicts
+DROP POLICY IF EXISTS "Admins can manage personal training codes" ON personal_training_codes;
+DROP POLICY IF EXISTS "Admins can manage all schedules" ON personal_training_schedules;
+DROP POLICY IF EXISTS "Users can view their own schedules" ON personal_training_schedules;
+DROP POLICY IF EXISTS "Users can update their schedule status" ON personal_training_schedules;
+DROP POLICY IF EXISTS "Admins can view all schedules" ON personal_training_schedules;
+DROP POLICY IF EXISTS "Admins can view all schedules" ON personal_training_schedules;
 
--- Create new policies that allow admin to access all user profiles
-CREATE POLICY "Admins can view all user profiles" ON user_profiles
-FOR SELECT USING (
-  EXISTS (
-    SELECT 1 FROM public.user_profiles 
-    WHERE user_id = auth.uid() 
-    AND (
-      -- Check if user is admin (you might need to add a role column or check another way)
-      user_id IN (
-        SELECT user_id FROM public.user_profiles 
-        WHERE user_id = '550e8400-e29b-41d4-a716-446655440030' -- Admin user ID
-      )
-      OR
-      -- Alternative: allow if user_id matches any admin user_id
-      user_id = '550e8400-e29b-41d4-a716-446655440030'
-    )
-  )
-  OR
-  -- Allow users to view their own profile
-  user_id = auth.uid()
-);
+-- Create new policies that check user_profiles table for admin role
 
-CREATE POLICY "Admins can update all user profiles" ON user_profiles
-FOR UPDATE USING (
-  EXISTS (
-    SELECT 1 FROM public.user_profiles 
-    WHERE user_id = auth.uid() 
-    AND user_id = '550e8400-e29b-41d4-a716-446655440030' -- Admin user ID
-  )
-  OR
-  user_id = auth.uid()
-);
+-- Policy for personal_training_codes - admins can manage all
+CREATE POLICY "Admins can manage personal training codes" ON personal_training_codes
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM user_profiles 
+            WHERE user_id = auth.uid() 
+            AND role = 'admin'
+        )
+    );
 
-CREATE POLICY "Admins can insert user profiles" ON user_profiles
-FOR INSERT WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM public.user_profiles 
-    WHERE user_id = auth.uid() 
-    AND user_id = '550e8400-e29b-41d4-a716-446655440030' -- Admin user ID
-  )
-  OR
-  user_id = auth.uid()
-);
+-- Policy for personal_training_schedules - users can view their own
+CREATE POLICY "Users can view their own schedules" ON personal_training_schedules
+    FOR SELECT USING (user_id = auth.uid());
 
--- Alternative simpler approach: Temporarily disable RLS for testing
--- ALTER TABLE user_profiles DISABLE ROW LEVEL SECURITY;
+-- Policy for personal_training_schedules - admins can manage all (INSERT, UPDATE, DELETE)
+CREATE POLICY "Admins can manage all schedules" ON personal_training_schedules
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM user_profiles 
+            WHERE user_id = auth.uid() 
+            AND role = 'admin'
+        )
+    );
 
--- Test query to see if admin can now access all users
-SELECT 
-    user_id,
-    first_name,
-    last_name,
-    email,
-    created_at
-FROM user_profiles 
-ORDER BY created_at DESC;
+-- Policy for users to update their own schedule status
+CREATE POLICY "Users can update their schedule status" ON personal_training_schedules
+    FOR UPDATE USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
+
+-- Additional policy to allow admins to view all schedules (for admin panel)
+-- This is separate from the manage policy to ensure SELECT works properly
+CREATE POLICY "Admins can view all schedules" ON personal_training_schedules
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM user_profiles 
+            WHERE user_id = auth.uid() 
+            AND role = 'admin'
+        )
+    );

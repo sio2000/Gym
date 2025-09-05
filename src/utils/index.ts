@@ -131,6 +131,12 @@ export function isValidPassword(password: string): boolean {
   return passwordRegex.test(password);
 }
 
+export function isValidPhone(phone: string): boolean {
+  // Ελληνικό τηλέφωνο: +30, 69, 70, 21, 22, 23, 24, 25, 26, 27, 28, 29
+  const phoneRegex = /^[\+]?[0-9\s\-\(\)]{10,}$/;
+  return phoneRegex.test(phone);
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('el-GR', {
     style: 'currency',

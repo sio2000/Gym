@@ -41,7 +41,7 @@ const LoginForm: React.FC = () => {
 
     try {
       await login(credentials);
-      navigate('/dashboard');
+      navigate('/');
     } catch (error) {
       // Error is handled in AuthContext
     }
@@ -178,6 +178,7 @@ const LoginForm: React.FC = () => {
             </p>
           </div>
         </form>
+
 
         <div className="mt-6">
           <div className="relative">

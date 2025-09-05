@@ -15,7 +15,7 @@ import {
   Settings,
   Key
 } from 'lucide-react';
-import { formatDate, calculateAge } from '@/utils';
+import { formatDate, calculateAge, uploadProfilePhoto } from '@/utils/profileUtils';
 import toast from 'react-hot-toast';
 
 const Profile: React.FC = () => {
@@ -28,13 +28,16 @@ const Profile: React.FC = () => {
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
     email: user?.email || '',
-    phone: '',
-    dateOfBirth: '',
-    address: '',
-    emergencyContact: '',
+    phone: user?.phone || '',
+    dob: user?.dob || '',
+    address: user?.address || '',
+    emergency_contact: user?.emergency_contact || '',
+    profile_photo: user?.profile_photo || '',
+    profile_photo_locked: user?.profile_photo_locked || false,
+    dob_locked: user?.dob_locked || false,
     notifications: true,
     emailUpdates: true,
-    language: 'el' as 'el' | 'en'
+    language: (user?.language as 'el' | 'en') || 'el'
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -53,6 +56,34 @@ const Profile: React.FC = () => {
     referralUpdates: true
   });
 
+  const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState<string>('');
+
+  // Update formData when user changes
+  React.useEffect(() => {
+    if (user) {
+      setFormData({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        dob: user.dob || '',
+        address: user.address || '',
+        emergency_contact: user.emergency_contact || '',
+        profile_photo: user.profile_photo || '',
+        profile_photo_locked: user.profile_photo_locked || false,
+        dob_locked: user.dob_locked || false,
+        notifications: true,
+        emailUpdates: true,
+        language: (user.language as 'el' | 'en') || 'el'
+      });
+      
+      if (user.profile_photo) {
+        setProfilePhotoPreview(user.profile_photo);
+      }
+    }
+  }, [user]);
+
   // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -60,6 +91,27 @@ const Profile: React.FC = () => {
       ...prev,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }));
+  };
+
+
+  // Handle file selection
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (formData.profile_photo_locked) {
+        toast.error('Η φωτογραφία προφίλ δεν μπορεί να αλλάξει');
+        return;
+      }
+      
+      setProfilePhotoFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setProfilePhotoPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   // Handle password input changes
@@ -85,10 +137,51 @@ const Profile: React.FC = () => {
     e.preventDefault();
     
     try {
-      await updateProfile(formData);
+      console.log('[Profile] ===== FORM SUBMISSION STARTED =====');
+      console.log('[Profile] Form data:', JSON.stringify(formData, null, 2));
+      console.log('[Profile] Profile photo file:', profilePhotoFile);
+      
+      let finalFormData = { ...formData };
+      
+      // If profile photo is selected, upload it first
+      if (profilePhotoFile) {
+        console.log('[Profile] Uploading profile photo...');
+        const publicUrl = await uploadProfilePhoto(profilePhotoFile, user?.id || '');
+        console.log('[Profile] Upload successful, public URL:', publicUrl);
+        
+        // Update formData with the uploaded photo URL
+        finalFormData = {
+          ...formData,
+          profile_photo: publicUrl,
+          profile_photo_locked: true
+        };
+        
+        console.log('[Profile] Final form data after photo upload:', JSON.stringify(finalFormData, null, 2));
+        
+        // Clear the file selection
+        setProfilePhotoFile(null);
+        setProfilePhotoPreview(publicUrl);
+        
+        // Also update the state immediately
+        setFormData(finalFormData);
+      }
+      
+      // Update profile data with locking logic
+      const updatedData = {
+        ...finalFormData,
+        dob_locked: finalFormData.dob ? true : finalFormData.dob_locked
+      };
+      
+      console.log('[Profile] Updated data to send:', JSON.stringify(updatedData, null, 2));
+      console.log('[Profile] Calling updateProfile...');
+      
+      await updateProfile(updatedData);
       setIsEditing(false);
+      console.log('[Profile] ===== FORM SUBMISSION COMPLETED =====');
       toast.success('Το προφίλ ενημερώθηκε επιτυχώς!');
     } catch (error) {
+      console.error('[Profile] ===== FORM SUBMISSION FAILED =====');
+      console.error('[Profile] Error details:', error);
       toast.error('Σφάλμα κατά την ενημέρωση του προφίλ');
     }
   };
@@ -181,20 +274,32 @@ const Profile: React.FC = () => {
               {/* Avatar Section */}
               <div className="flex items-center space-x-6">
                 <div className="relative">
-                  <div className="w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center">
-                    <User className="h-12 w-12 text-primary-600" />
-                  </div>
-                  {isEditing && (
-                    <button
-                      type="button"
-                      className="absolute -bottom-2 -right-2 p-2 bg-primary-600 text-white rounded-full hover:bg-primary-700 transition-colors"
-                    >
+                  {profilePhotoPreview || formData.profile_photo ? (
+                    <img
+                      src={profilePhotoPreview || formData.profile_photo}
+                      alt="Profile"
+                      className="w-24 h-24 rounded-full object-cover border-4 border-gray-200"
+                    />
+                  ) : (
+                    <div className="w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center border-4 border-gray-200">
+                      <User className="h-12 w-12 text-primary-600" />
+                    </div>
+                  )}
+                  
+                  {!formData.profile_photo_locked && isEditing && (
+                    <label className="absolute -bottom-2 -right-2 p-2 bg-primary-600 text-white rounded-full hover:bg-primary-700 transition-colors cursor-pointer">
                       <Camera className="h-4 w-4" />
-                    </button>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                      />
+                    </label>
                   )}
                 </div>
                 
-                <div>
+                <div className="flex-1">
                   <h3 className="text-lg font-medium text-gray-900">
                     {user?.firstName} {user?.lastName}
                   </h3>
@@ -202,6 +307,17 @@ const Profile: React.FC = () => {
                   <p className="text-sm text-gray-500">
                     Μέλος από {formatDate(user?.createdAt || '')}
                   </p>
+                  
+                  {formData.profile_photo_locked ? (
+                    <div className="mt-2 bg-green-50 border border-green-200 rounded-lg p-2">
+                      <p className="text-green-800 text-xs font-medium">🔒 Η φωτογραφία προφίλ είναι κλειδωμένη</p>
+                    </div>
+                  ) : (
+                    <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-2">
+                      <p className="text-blue-800 text-xs font-medium">📸 Επιλέξτε φωτογραφία προφίλ</p>
+                      <p className="text-blue-600 text-xs">Μπορείτε να την αλλάξετε μόνο μία φορά</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -262,25 +378,37 @@ const Profile: React.FC = () => {
                   </div>
                 </div>
                 
-                <div>
-                  <label className="form-label">Ημερομηνία Γέννησης</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input
-                      type="date"
-                      name="dateOfBirth"
-                      value={formData.dateOfBirth}
-                      onChange={handleInputChange}
-                      disabled={!isEditing}
-                      className="input-field pl-10 disabled:bg-gray-50 disabled:text-gray-500"
-                    />
-                  </div>
-                  {formData.dateOfBirth && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      Ηλικία: {calculateAge(formData.dateOfBirth)} ετών
-                    </p>
-                  )}
-                </div>
+                                 <div>
+                   <div className="flex items-center justify-between mb-2">
+                     <label className="form-label">Ημερομηνία Γέννησης</label>
+                     {formData.dob_locked && (
+                       <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                         🔒 Κλειδωμένο
+                       </span>
+                     )}
+                   </div>
+                   <div className="relative">
+                     <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                     <input
+                       type="date"
+                       name="dob"
+                       value={formData.dob}
+                       onChange={handleInputChange}
+                       disabled={!isEditing || formData.dob_locked}
+                       className="input-field pl-10 disabled:bg-gray-50 disabled:text-gray-500"
+                     />
+                   </div>
+                   {formData.dob && (
+                     <p className="text-sm text-gray-500 mt-1">
+                       Ηλικία: {calculateAge(formData.dob)} ετών
+                     </p>
+                   )}
+                   {formData.dob_locked ? (
+                     <p className="text-xs text-green-600 mt-1">Η ημερομηνία γέννησης είναι κλειδωμένη</p>
+                   ) : (
+                     <p className="text-xs text-gray-500 mt-1">Μπορείτε να την ορίσετε μόνο μία φορά</p>
+                   )}
+                 </div>
                 
                 <div>
                   <label className="form-label">Γλώσσα</label>
@@ -314,19 +442,19 @@ const Profile: React.FC = () => {
                 </div>
               </div>
 
-              {/* Emergency Contact */}
-              <div>
-                <label className="form-label">Επείγουσα Επικοινωνία</label>
-                <input
-                  type="text"
-                  name="emergencyContact"
-                  value={formData.emergencyContact}
-                  onChange={handleInputChange}
-                  disabled={!isEditing}
-                  placeholder="Όνομα και τηλέφωνο επείγουσας επικοινωνίας"
-                  className="input-field disabled:bg-gray-50 disabled:text-gray-500"
-                />
-              </div>
+                             {/* Emergency Contact */}
+               <div>
+                 <label className="form-label">Επείγουσα Επικοινωνία</label>
+                 <input
+                   type="text"
+                   name="emergency_contact"
+                   value={formData.emergency_contact}
+                   onChange={handleInputChange}
+                   disabled={!isEditing}
+                   placeholder="Όνομα και τηλέφωνο επείγουσας επικοινωνίας"
+                   className="input-field disabled:bg-gray-50 disabled:text-gray-500"
+                 />
+               </div>
 
               {/* Preferences */}
               <div className="space-y-4">

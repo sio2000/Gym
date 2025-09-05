@@ -10,6 +10,13 @@ export interface User {
   language: 'el' | 'en';
   createdAt: string;
   updatedAt: string;
+  // New profile fields
+  dob?: string;
+  address?: string;
+  emergency_contact?: string;
+  profile_photo?: string;
+  profile_photo_locked?: boolean;
+  dob_locked?: boolean;
 }
 
 export type UserRole = 'user' | 'trainer' | 'admin';
@@ -208,7 +215,7 @@ export interface RegisterData {
   password: string;
   firstName: string;
   lastName: string;
-  phone?: string;
+  phone: string;
   referralCode?: string;
   language?: 'el' | 'en';
 }
@@ -220,7 +227,7 @@ export interface AuthContextType {
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
-  updateProfile: (data: Partial<UserProfile>) => Promise<void>;
+  updateProfile: (data: Partial<User>) => Promise<void>;
 }
 
 // New interfaces for specialized requirements
@@ -298,7 +305,7 @@ export interface PersonalTrainingScheduleData {
 
 export interface PersonalTrainingSession {
   id: string;
-  dayOfWeek: number; // 1-7 (Monday-Sunday)
+  date: string; // YYYY-MM-DD format (πλήρη ημερομηνία)
   startTime: string; // HH:mm format
   endTime: string; // HH:mm format
   type: 'personal' | 'kickboxing' | 'combo';
@@ -312,6 +319,12 @@ export interface UserWithPersonalTraining {
   email: string;
   firstName: string;
   lastName: string;
+  profile_photo?: string;
+  profile_photo_locked?: boolean;
+  dob?: string;
+  address?: string;
+  emergency_contact?: string;
+  dob_locked?: boolean;
   hasPersonalTrainingCode: boolean;
   personalTrainingCode?: string;
   packageType?: 'personal' | 'kickboxing' | 'combo';

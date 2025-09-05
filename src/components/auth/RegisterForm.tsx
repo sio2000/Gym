@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { RegisterData } from '@/types';
-import { isValidEmail, isValidPassword } from '@/utils';
-import { Eye, EyeOff, Mail, Lock, User, Loader2 } from 'lucide-react';
+import { isValidEmail, isValidPassword, isValidPhone } from '@/utils';
+import { Eye, EyeOff, Mail, Lock, User, Loader2, Phone } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const RegisterForm: React.FC = () => {
@@ -13,6 +13,7 @@ const RegisterForm: React.FC = () => {
     confirmPassword: '',
     firstName: '',
     lastName: '',
+    phone: '',
     referralCode: ''
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -31,6 +32,12 @@ const RegisterForm: React.FC = () => {
 
     if (!formData.lastName) {
       newErrors.lastName = 'Το επώνυμο είναι υποχρεωτικό';
+    }
+
+    if (!formData.phone) {
+      newErrors.phone = 'Το τηλέφωνο είναι υποχρεωτικό';
+    } else if (!isValidPhone(formData.phone)) {
+      newErrors.phone = 'Παρακαλώ εισάγετε ένα έγκυρο αριθμό τηλεφώνου';
     }
 
     if (!formData.email) {
@@ -63,7 +70,7 @@ const RegisterForm: React.FC = () => {
     try {
       const { confirmPassword, ...registerData } = formData;
       await register(registerData);
-      navigate('/dashboard');
+      navigate('/');
     } catch (error) {
       // Error is handled in AuthContext
     }
@@ -172,6 +179,31 @@ const RegisterForm: React.FC = () => {
               </div>
               {errors.email && (
                 <p className="mt-1 text-sm text-error-600">{errors.email}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="phone" className="form-label">
+                Τηλέφωνο
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Phone className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  autoComplete="tel"
+                  required
+                  className={`input-field pl-10 ${errors.phone ? 'border-error-500 focus:ring-error-500' : ''}`}
+                  placeholder="εισάγετε το τηλέφωνό σας"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                />
+              </div>
+              {errors.phone && (
+                <p className="mt-1 text-sm text-error-600">{errors.phone}</p>
               )}
             </div>
 
